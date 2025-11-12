@@ -28,24 +28,28 @@ fullstack-ai-chat/
 Kurulum Adımları
 
 Backend (.NET Core)
+
 bash
 cd backend/ChatAPI
 dotnet restore
 dotnet run
 
 Frontend Web (React)
+
 bash
 cd frontend
 npm install
 npm start
 
 Frontend Mobile (React Native)
+
 bash
 cd mobile-new
 npm install
 npx react-native run-android
 
 AI Servis (Python)
+
 bash
 cd ai-service
 pip install -r requirements.txt
