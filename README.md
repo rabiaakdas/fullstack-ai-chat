@@ -73,9 +73,7 @@ Kullanım: Web arayüzü ve API endpoint
 
 
 # Çalışır Demo Linkleri
-Web Chat: https://fullstack-ai-chat-mauve.vercel.app/
-
-Mobile APK: [GitHub Releases'tan indirilebilir]
+Web Chat: https://fullstack-ai-chat-two.vercel.app/
 
 AI Endpoint: https://rabianrrr-turkish-emotion-analysis.hf.space
 
