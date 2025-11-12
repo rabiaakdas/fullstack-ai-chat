@@ -1,20 +1,10 @@
 import os
 import json
-from flask import Flask, request, jsonify
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
 import torch
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)
-
-# Hugging Face Spaces ortam değişkenleri
-HF_SPACE = os.environ.get('HF_SPACE', False)
-SPACE_NAME = os.environ.get('SPACE_NAME', 'turkish-sentiment-analysis')
+import gradio as gr
 
 print("🤖 Türkçe Duygu Analizi Modeli Yükleniyor...")
-print(f"📍 Ortam: {'Hugging Face Space' if HF_SPACE else 'Local'}")
-
 
 sentiment_pipeline = None
 
@@ -210,191 +200,54 @@ def analyze_sentiment(text):
         print(f"❌ Analiz hatası: {e}")
         return {"error": f"Analiz başarısız: {str(e)}"}
 
-@app.route('/analyze', methods=['POST', 'GET'])
-def analyze_endpoint():
-    """
-    Ana duygu analizi endpoint'i - Özel ifade desteği ile
-    """
-    try:
-        if request.method == 'GET':
-            return jsonify({
-                "message": "🇹🇷 Türkçe Duygu Analizi API v4.0",
-                "version": "4.0.0",
-                "description": "Özel ifade desteği ile gelişmiş duygu analizi",
-                "usage": "POST isteği ile {'text': 'analiz edilecek metin'} gönderin",
-                "special_features": [
-                    "'fena değil' → pozitif",
-                    "'normalim' → nötr", 
-                    "Net duygu önceliği"
-                ]
-            })
-        
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form
-        
-        if not data:
-            return jsonify({"error": "JSON verisi gerekli"}), 400
-        
-        text = data.get('text', '') or data.get('input', '') or data.get('message', '')
-        
-        if not text:
-            return jsonify({"error": "Analiz için metin gerekli"}), 400
-        
-        print(f"📥 İstek alındı: '{text}'")
-        
-        result = analyze_sentiment(text)
-        
-        if "error" in result:
-            return jsonify(result), 500
-            
-        return jsonify(result)
-        
-    except Exception as e:
-        print(f"❌ Sunucu hatası: {e}")
-        return jsonify({"error": f"Sunucu hatası: {str(e)}"}), 500
+# Gradio arayüzü için ana fonksiyon
+def gradio_analyze(text):
+    """Gradio için ana analiz fonksiyonu"""
+    result = analyze_sentiment(text)
+    return result
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    """
-    Servis durum kontrolü
-    """
-    return jsonify({
-        "status": "healthy",
-        "service": "Turkish Sentiment Analysis API v4.0",
-        "model_loaded": sentiment_pipeline is not None,
-        "version": "4.0.0",
-        "language": "turkish",
-        "special_features": [
-            "'fena değil' → pozitif tespiti",
-            "'normalim' → nötr tespiti",
-            "Net duygu ifade önceliği"
-        ]
-    })
-
-@app.route('/test-special', methods=['GET'])
-def test_special_cases():
-    """
-    Özel durumları test et
-    """
-    test_cases = [
-        {"text": "fena değil", "expected": "positive", "description": "Olumsuz kelime içeren pozitif ifade"},
-        {"text": "normalim", "expected": "neutral", "description": "Net nötr ifade"},
-        {"text": "çok mutluyum", "expected": "positive", "description": "Net pozitif ifade"},
-        {"text": "üzgünüm", "expected": "negative", "description": "Net negatif ifade"},
-        {"text": "idare eder", "expected": "neutral", "description": "Nötr ifade"},
-        {"text": "kötü değil", "expected": "positive", "description": "Olumsuz kelime içeren pozitif"}
+# Gradio arayüzünü oluştur
+demo = gr.Interface(
+    fn=gradio_analyze,
+    inputs=gr.Textbox(
+        label="📝 Metni Girin", 
+        placeholder="Duygu analizi yapılacak Türkçe metni yazın...",
+        lines=3
+    ),
+    outputs=gr.JSON(label="🎯 Analiz Sonucu"),
+    title="🤖 Türkçe Duygu Analizi - AI Chat Projesi",
+    description=""" 
+    🇹🇷 **Türkçe metinlerin duygu durumunu analiz eder**
+    
+    🎯 **Özel Özellikler:**
+    • 'fena değil' → **Pozitif** olarak tanınır
+    • 'normalim' → **Nötr** olarak tanınır  
+    • Net duygu ifadelerine öncelik verilir
+    
+    🔍 **Örnekler:** 'Çok mutluyum!', 'Fena değil', 'Üzgünüm'
+    """,
+    examples=[
+        ["Bugün çok mutluyum, harika bir gün!"],
+        ["Fena değil, idare eder"],
+        ["Üzgünüm bugün her şey ters gidiyor"],
+        ["Normal bir gün, sıradan"],
+        ["Bu proje mükemmel olmuş!"],
+        ["Kötü değil aslında"]
     ]
-    
-    results = []
-    correct_count = 0
-    
-    for test in test_cases:
-        print(f"\n🧪 Test: '{test['text']}'")
-        result = analyze_sentiment(test["text"])
-        
-        actual = result.get("sentiment")
-        expected = test["expected"]
-        is_correct = actual == expected
-        
-        if is_correct:
-            correct_count += 1
-            status = "✅"
-        else:
-            status = "❌"
-        
-        results.append({
-            "text": test["text"],
-            "expected": expected,
-            "actual": actual,
-            "score": result.get("score"),
-            "confidence": result.get("confidence"),
-            "reason": result.get("analysis", {}).get("decision_reason"),
-            "description": test["description"],
-            "status": status,
-            "is_correct": is_correct
-        })
-    
-    accuracy = round((correct_count / len(test_cases)) * 100, 1)
-    
-    return jsonify({
-        "test_type": "special_cases_accuracy",
-        "total_tests": len(test_cases),
-        "correct_predictions": correct_count,
-        "accuracy": f"%{accuracy}",
-        "results": results
-    })
+)
 
-@app.route('/batch', methods=['POST'])
-def batch_analyze():
-    """
-    Toplu metin analizi
-    """
-    try:
-        data = request.get_json()
-        
-        if not data or 'texts' not in data:
-            return jsonify({"error": "'texts' listesi gerekli"}), 400
-        
-        texts = data['texts']
-        
-        if not isinstance(texts, list) or len(texts) > 10:
-            return jsonify({"error": "Maksimum 10 metin gönderilebilir"}), 400
-        
-        results = []
-        for text in texts:
-            if isinstance(text, str) and text.strip():
-                result = analyze_sentiment(text)
-                results.append(result)
-            else:
-                results.append({"error": "Geçersiz metin"})
-        
-        return jsonify({
-            "count": len(results),
-            "results": results
-        })
-        
-    except Exception as e:
-        return jsonify({"error": f"Toplu analiz hatası: {str(e)}"}), 500
+# API endpoint simülasyonu (opsiyonel)
+def api_simulate(text):
+    """API benzeri response için"""
+    result = analyze_sentiment(text)
+    return result
 
-@app.route('/', methods=['GET'])
-def home():
-    """
-    Ana sayfa
-    """
-    return jsonify({
-        "message": "🇹🇷 Türkçe Duygu Analizi API v4.0",
-        "version": "4.0.0",
-        "description": "Özel ifade desteği ile gelişmiş duygu analizi",
-        "key_improvements": [
-            "✅ 'fena değil' → pozitif olarak tanınır",
-            "✅ 'normalim' → nötr olarak tanınır", 
-            "✅ Net duygu ifadelerine öncelik verilir",
-            "✅ Olumsuz kelime içeren pozitif ifadeler desteklenir"
-        ],
-        "endpoints": {
-            "POST /analyze": "Tekil metin analizi",
-            "POST /batch": "Toplu analiz (max 10)",
-            "GET /health": "Servis durumu",
-            "GET /test-special": "Özel durum testi",
-            "GET /": "Bu sayfa"
-        }
-    })
-
+# Uygulamayı başlat
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 7860))
-    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
-    
-    print(f"\n🚀 Türkçe Duygu Analizi API v4.0 Başlatılıyor...")
-    print(f"📍 Port: {port}")
+    print(f"\n🚀 Türkçe Duygu Analizi Gradio UI Başlatılıyor...")
     print(f"🎯 ÖZEL ÖZELLİKLER:")
     print(f"   ✓ 'fena değil' → POZİTİF")
     print(f"   ✓ 'normalim' → NÖTR") 
     print(f"   ✓ Net duygu ifadelerine öncelik")
-    print(f"📚 Endpoints:")
-    print(f"   POST /analyze       - Duygu analizi")
-    print(f"   GET  /test-special  - Özel durum testi")
-    print(f"   GET  /health        - Servis durumu")
     
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    demo.launch(share=True, server_name="0.0.0.0", server_port=7860)
