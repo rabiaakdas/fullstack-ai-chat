@@ -37,7 +37,7 @@ var app = builder.Build();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 
-//VERİTABANI 
+// VERİTABANI 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ChatContext>();
@@ -64,15 +64,14 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ENDPOINT
+// ENDPOINT'LER
 
-//KULLANICI KAYDI
+// KULLANICI KAYDI
 app.MapPost("/api/register", async (HttpContext httpContext, ChatContext context) => {
     try 
     {
         Console.WriteLine("📝 Register endpoint çağrıldı");
         
-    
         using var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8);
         var rawBody = await reader.ReadToEndAsync();
         Console.WriteLine($"📦 Raw Body: {rawBody}");
@@ -82,7 +81,6 @@ app.MapPost("/api/register", async (HttpContext httpContext, ChatContext context
             return Results.BadRequest(new { error = "Boş request body" });
         }
 
-  
         try 
         {
             using var jsonDoc = JsonDocument.Parse(rawBody);
@@ -142,13 +140,12 @@ app.MapPost("/api/register", async (HttpContext httpContext, ChatContext context
     }
 });
 
-//MESAJ GÖNDERME - AI ENTEGRASYONLU
+// MESAJ GÖNDERME - AI ENTEGRASYONLU
 app.MapPost("/api/messages", async (HttpContext httpContext, ChatContext context, AIService aiService) => {
     try 
     {
         Console.WriteLine("📤 Mesaj gönder endpoint çağrıldı");
         
-    
         using var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8);
         var rawBody = await reader.ReadToEndAsync();
         Console.WriteLine($"📦 Raw Body: {rawBody}");
@@ -180,12 +177,10 @@ app.MapPost("/api/messages", async (HttpContext httpContext, ChatContext context
             if (userId <= 0)
                 return Results.BadRequest(new { error = "Geçersiz kullanıcı ID" });
             
-       
             var user = await context.Users.FindAsync(userId);
             if (user == null)
                 return Results.BadRequest(new { error = "Kullanıcı bulunamadı" });
             
-          
             string sentiment = "neutral";
             double score = 0.5;
             
@@ -199,12 +194,10 @@ app.MapPost("/api/messages", async (HttpContext httpContext, ChatContext context
             catch (Exception aiEx)
             {
                 Console.WriteLine($"⚠️ AI hatası: {aiEx.Message}");
-          
                 sentiment = "neutral";
                 score = 0.5;
             }
             
-
             var newMessage = new Message 
             {
                 Text = text,
@@ -243,7 +236,7 @@ app.MapPost("/api/messages", async (HttpContext httpContext, ChatContext context
     }
 });
 
-//MESAJLARI GETİR
+// MESAJLARI GETİR
 app.MapGet("/api/messages", async (ChatContext context) => {
     try 
     {
@@ -272,7 +265,7 @@ app.MapGet("/api/messages", async (ChatContext context) => {
     }
 });
 
-//KULLANICI LİSTESİ
+// KULLANICI LİSTESİ
 app.MapGet("/api/users", async (ChatContext context) => {
     try 
     {
@@ -295,13 +288,12 @@ app.MapGet("/api/users", async (ChatContext context) => {
     }
 });
 
-//AI TEST ENDPOINT'LERİ
+// AI TEST ENDPOINT'İ
 app.MapPost("/api/test-ai", async (AIService aiService, HttpContext httpContext) => {
     try 
     {
         Console.WriteLine("🧪 AI Test endpoint çağrıldı");
         
-        // JSON'ı manuel oku
         using var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8);
         var rawBody = await reader.ReadToEndAsync();
         Console.WriteLine($"📦 AI Test Raw Body: {rawBody}");
@@ -311,7 +303,6 @@ app.MapPost("/api/test-ai", async (AIService aiService, HttpContext httpContext)
             return Results.BadRequest(new { error = "Boş request body" });
         }
 
-        // JSON parse et
         using var jsonDoc = JsonDocument.Parse(rawBody);
         var root = jsonDoc.RootElement;
         
@@ -323,7 +314,6 @@ app.MapPost("/api/test-ai", async (AIService aiService, HttpContext httpContext)
         
         Console.WriteLine($"🔍 AI Test metni: '{testText}'");
         
-        // AI analizi yap
         var (sentiment, score) = await aiService.AnalyzeSentimentAsync(testText);
         
         Console.WriteLine($"✅ AI Test sonucu: {sentiment} ({score})");
@@ -343,13 +333,12 @@ app.MapPost("/api/test-ai", async (AIService aiService, HttpContext httpContext)
     }
 });
 
-//AI HEALTH CHECK
+// AI HEALTH CHECK
 app.MapGet("/api/ai-health", async (AIService aiService) => {
     try 
     {
         Console.WriteLine("🔍 AI Health check...");
         
-        // Test mesajı ile AI'yi dene
         var (sentiment, score) = await aiService.AnalyzeSentimentAsync("Bugün harika bir gün!");
         
         return Results.Ok(new {
@@ -372,7 +361,7 @@ app.MapGet("/api/ai-health", async (AIService aiService) => {
     }
 });
 
-// 7. DEBUG ENDPOINT
+// DEBUG ENDPOINT
 app.MapPost("/api/debug", async (HttpContext httpContext) => {
     try 
     {
@@ -396,7 +385,7 @@ app.MapPost("/api/debug", async (HttpContext httpContext) => {
     }
 });
 
-//TEST ENDPOINT'LERİ
+// TEST ENDPOINT'LERİ
 app.MapGet("/", () => {
     Console.WriteLine("🏠 Root endpoint çağrıldı");
     return "🚀 BACKEND ÇALIŞIYOR! (Port 5050)";
@@ -411,10 +400,9 @@ app.MapGet("/api/test", () => {
     });
 });
 
-
 app.Run("http://0.0.0.0:5050");
 
-//MODELLER
+// MODELLER
 public class User
 {
     public int Id { get; set; }
@@ -455,7 +443,7 @@ public class ChatContext : DbContext
     }
 }
 
-//SERVİSLER
+// SERVİSLER - GÜNCELLENMİŞ AI SERVİSİ
 public class AIService
 {
     private readonly HttpClient _httpClient;
@@ -471,15 +459,15 @@ public class AIService
         {
             Console.WriteLine($"🤖 AI Analiz için metin: '{text}'");
 
-            // 1. DENEME: Doğrudan JSON formatında gönder
-            var requestData = new { text = text };
+            // Hugging Face Inference API formatı
+            var requestData = new { inputs = text };
             var jsonContent = JsonSerializer.Serialize(requestData);
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
             
-            Console.WriteLine("🔄 Hugging Face'e istek gönderiliyor...");
+            Console.WriteLine("🔄 Hugging Face Inference API'ye istek gönderiliyor...");
             
-            // Önce /analyze endpoint'ini dene
-            var response = await _httpClient.PostAsync("/analyze", content);
+            // Hugging Face Inference API endpoint'i
+            var response = await _httpClient.PostAsync("", content);
             
             if (response.IsSuccessStatusCode)
             {
@@ -488,73 +476,68 @@ public class AIService
                 
                 try
                 {
-                    var aiResult = JsonSerializer.Deserialize<JsonElement>(responseString);
+                    // Hugging Face response formatını parse et
+                    var aiResults = JsonSerializer.Deserialize<JsonElement>(responseString);
                     
-                    // Python kodunuzdaki response formatına göre parse et
-                    var sentiment = aiResult.TryGetProperty("sentiment", out var s) 
-                        ? s.GetString() ?? "neutral" 
-                        : "neutral";
+                    if (aiResults.ValueKind == JsonValueKind.Array && aiResults.GetArrayLength() > 0)
+                    {
+                        var firstResult = aiResults.EnumerateArray().First();
                         
-                    var score = aiResult.TryGetProperty("score", out var sc) 
-                        ? sc.ValueKind == JsonValueKind.Number ? sc.GetDouble() : 0.5
-                        : 0.5;
-
-                    Console.WriteLine($"✅ AI Analiz Sonucu: {sentiment} ({score})");
-                    return (sentiment, score);
+                        // Label ve score değerlerini al
+                        var label = firstResult.GetProperty("label").GetString() ?? "neutral";
+                        var scoreValue = firstResult.GetProperty("score").GetDouble();
+                        
+                        // Label'ı sentiment'e çevir
+                        string sentiment = label.ToLower() switch
+                        {
+                            "positive" or "pozitif" => "positive",
+                            "negative" or "negatif" => "negative",
+                            _ => "neutral"
+                        };
+                        
+                        Console.WriteLine($"✅ AI Analiz Sonucu: {sentiment} ({scoreValue})");
+                        return (sentiment, scoreValue);
+                    }
                 }
                 catch (JsonException jsonEx)
                 {
                     Console.WriteLine($"❌ JSON parse hatası: {jsonEx.Message}");
+                    // Fallback: basit keyword analizi
+                    return AnalyzeTextManually(text);
                 }
             }
             else
             {
-                Console.WriteLine($"⚠️ /analyze endpoint hatası: {response.StatusCode}");
-                
-                // 2. DENEME: Gradio formatını dene
-                return await TryGradioFormat(text);
+                Console.WriteLine($"⚠️ Hugging Face API hatası: {response.StatusCode}");
+                Console.WriteLine($"Response: {await response.Content.ReadAsStringAsync()}");
             }
             
-            return ("neutral", 0.5);
+            // Fallback
+            return AnalyzeTextManually(text);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ AI analiz hatası: {ex.Message}");
-            return ("neutral", 0.5);
+            return AnalyzeTextManually(text);
         }
     }
 
-    private async Task<(string sentiment, double score)> TryGradioFormat(string text)
+    private (string sentiment, double score) AnalyzeTextManually(string text)
     {
-        try
-        {
-            // Gradio formatı
-            var formData = new List<KeyValuePair<string, string>>
-            {
-                new("text", text)
-            };
-            
-            var content = new FormUrlEncodedContent(formData);
-            var response = await _httpClient.PostAsync("/", content);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                var responseString = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"📨 Gradio Response: {responseString.Substring(0, Math.Min(200, responseString.Length))}...");
-                
-                // Basit sentiment tespiti
-                if (responseString.Contains("positive") || responseString.Contains("pozitif"))
-                    return ("positive", 0.8);
-                else if (responseString.Contains("negative") || responseString.Contains("negatif"))
-                    return ("negative", 0.8);
-            }
-            
+        // Basit keyword-based sentiment analizi
+        var lowerText = text.ToLower();
+        
+        var positiveWords = new[] { "mutlu", "harika", "mükemmel", "güzel", "iyi", "süper", "müthiş", "sevindim", "teşekkür", "güle güle", "iyi ki", "aşk", "seviyorum", "bayıldım" };
+        var negativeWords = new[] { "kötü", "berbat", "üzgün", "sinir", "kızgın", "nefret", "bıktım", "yoruldum", "yorgun", "korku", "korkunç", "fena", "kırgın" };
+        
+        var positiveCount = positiveWords.Count(word => lowerText.Contains(word));
+        var negativeCount = negativeWords.Count(word => lowerText.Contains(word));
+        
+        if (positiveCount > negativeCount)
+            return ("positive", 0.8);
+        else if (negativeCount > positiveCount)
+            return ("negative", 0.8);
+        else
             return ("neutral", 0.5);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Gradio format hatası: {ex.Message}");
-            return ("neutral", 0.5);
-        }
     }
 }
