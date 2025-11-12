@@ -12,7 +12,7 @@ builder.Services.AddDbContext<ChatContext>(options =>
 // HttpClient Factory - AI servisi için
 builder.Services.AddHttpClient<AIService>(client => 
 {
-    client.BaseAddress = new Uri("http://localhost:7860");
+    client.BaseAddress = new Uri("https://rabianrrr-turkish-emotion-analysis.hf.space");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
