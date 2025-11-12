@@ -77,7 +77,7 @@ Web Chat: https://fullstack-ai-chat-two.vercel.app/
 
 AI Endpoint: https://rabianrrr-turkish-emotion-analysis.hf.space
 
-Render API: https://fullstack-ai-chat-11.onrender.com
+Render API: https://fullstack-ai-chat-14.onrender.com
 
 ## Dosya İşlevleri
 
