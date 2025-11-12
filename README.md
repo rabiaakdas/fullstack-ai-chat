@@ -1,5 +1,3 @@
-# fullstack-ai-chat
-
 Proje Hakkında
 
 Kullanıcıların mesajlaşabildiği, yazışmaların AI tarafından duygu analizi yapılarak canlı olarak gösterildiği full-stack web ve mobil uygulama.
