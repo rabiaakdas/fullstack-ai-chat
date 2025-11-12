@@ -469,63 +469,91 @@ public class AIService
     {
         try
         {
-            // Hugging Face Spaces formatına uygun request
-            var requestData = new { 
-                data = new[] { text }  // "data" array içinde gönder
-            };
-            
+            Console.WriteLine($"🤖 AI Analiz için metin: '{text}'");
+
+            // 1. DENEME: Doğrudan JSON formatında gönder
+            var requestData = new { text = text };
             var jsonContent = JsonSerializer.Serialize(requestData);
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
             
-            Console.WriteLine($"🤖 Hugging Face'e gönderiliyor: '{text}'");
+            Console.WriteLine("🔄 Hugging Face'e istek gönderiliyor...");
             
-            // Hugging Face Spaces API endpoint'i
-            var response = await _httpClient.PostAsync("/run/predict", content);
+            // Önce /analyze endpoint'ini dene
+            var response = await _httpClient.PostAsync("/analyze", content);
             
             if (response.IsSuccessStatusCode)
             {
                 var responseString = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"📨 Hugging Face Response: {responseString}");
+                Console.WriteLine($"📨 AI Response: {responseString}");
                 
-                var aiResult = JsonSerializer.Deserialize<JsonElement>(responseString);
-                
-                // Hugging Face Spaces response formatını parse et
-                if (aiResult.TryGetProperty("data", out var data) && 
-                    data.ValueKind == JsonValueKind.Array && 
-                    data.GetArrayLength() > 0)
+                try
                 {
-                    var firstItem = data[0];
+                    var aiResult = JsonSerializer.Deserialize<JsonElement>(responseString);
                     
-                    // Python kodunuzdaki JSON formatına göre parse et
-                    var sentiment = firstItem.TryGetProperty("sentiment", out var s) 
+                    // Python kodunuzdaki response formatına göre parse et
+                    var sentiment = aiResult.TryGetProperty("sentiment", out var s) 
                         ? s.GetString() ?? "neutral" 
                         : "neutral";
                         
-                    var score = firstItem.TryGetProperty("score", out var sc) 
+                    var score = aiResult.TryGetProperty("score", out var sc) 
                         ? sc.ValueKind == JsonValueKind.Number ? sc.GetDouble() : 0.5
                         : 0.5;
-                    
-                    Console.WriteLine($"✅ Hugging Face Analiz: {sentiment} ({score})");
+
+                    Console.WriteLine($"✅ AI Analiz Sonucu: {sentiment} ({score})");
                     return (sentiment, score);
                 }
-                else
+                catch (JsonException jsonEx)
                 {
-                    Console.WriteLine($"❌ Hugging Face format hatası: data array bulunamadı");
+                    Console.WriteLine($"❌ JSON parse hatası: {jsonEx.Message}");
                 }
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"⚠️ Hugging Face servis hatası: {response.StatusCode}");
-                Console.WriteLine($"Error Details: {errorContent}");
+                Console.WriteLine($"⚠️ /analyze endpoint hatası: {response.StatusCode}");
+                
+                // 2. DENEME: Gradio formatını dene
+                return await TryGradioFormat(text);
             }
             
-            // Fallback: herhangi bir hata durumunda neutral dön
             return ("neutral", 0.5);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ AI analiz hatası: {ex.Message}");
+            return ("neutral", 0.5);
+        }
+    }
+
+    private async Task<(string sentiment, double score)> TryGradioFormat(string text)
+    {
+        try
+        {
+            // Gradio formatı
+            var formData = new List<KeyValuePair<string, string>>
+            {
+                new("text", text)
+            };
+            
+            var content = new FormUrlEncodedContent(formData);
+            var response = await _httpClient.PostAsync("/", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseString = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"📨 Gradio Response: {responseString.Substring(0, Math.Min(200, responseString.Length))}...");
+                
+                // Basit sentiment tespiti
+                if (responseString.Contains("positive") || responseString.Contains("pozitif"))
+                    return ("positive", 0.8);
+                else if (responseString.Contains("negative") || responseString.Contains("negatif"))
+                    return ("negative", 0.8);
+            }
+            
+            return ("neutral", 0.5);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Gradio format hatası: {ex.Message}");
             return ("neutral", 0.5);
         }
     }
