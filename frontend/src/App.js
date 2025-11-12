@@ -10,7 +10,7 @@ function App() {
   const [isRegistered, setIsRegistered] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const BACKEND_URL = 'http://localhost:5050';
+  const BACKEND_URL = 'https://fullstack-ai-chat-9.onrender.com';
 
   // LocalStorage'dan kullanıcı bilgilerini yükle
   useEffect(() => {
