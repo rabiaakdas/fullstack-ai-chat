@@ -469,37 +469,59 @@ public class AIService
     {
         try
         {
-            var requestData = new { text };
-            var jsonContent = JsonSerializer.Serialize(requestData);
+            // Hugging Face Spaces formatına uygun request
+            var requestData = new { 
+                data = new[] { text }  // "data" array içinde gönder
+            };
             
+            var jsonContent = JsonSerializer.Serialize(requestData);
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
             
-            Console.WriteLine($"🤖 AI'ye gönderiliyor: '{text}'");
+            Console.WriteLine($"🤖 Hugging Face'e gönderiliyor: '{text}'");
             
-            var response = await _httpClient.PostAsync("/analyze", content);
+            // Hugging Face Spaces API endpoint'i
+            var response = await _httpClient.PostAsync("/run/predict", content);
             
             if (response.IsSuccessStatusCode)
             {
                 var responseString = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"📨 AI Response: {responseString}");
+                Console.WriteLine($"📨 Hugging Face Response: {responseString}");
                 
                 var aiResult = JsonSerializer.Deserialize<JsonElement>(responseString);
                 
-                var sentiment = aiResult.TryGetProperty("sentiment", out var s) 
-                    ? s.GetString() ?? "neutral" 
-                    : "neutral";
+                // Hugging Face Spaces response formatını parse et
+                if (aiResult.TryGetProperty("data", out var data) && 
+                    data.ValueKind == JsonValueKind.Array && 
+                    data.GetArrayLength() > 0)
+                {
+                    var firstItem = data[0];
                     
-                var score = aiResult.TryGetProperty("score", out var sc) 
-                    ? sc.ValueKind == JsonValueKind.Number ? sc.GetDouble() : 0.5
-                    : 0.5;
+                    // Python kodunuzdaki JSON formatına göre parse et
+                    var sentiment = firstItem.TryGetProperty("sentiment", out var s) 
+                        ? s.GetString() ?? "neutral" 
+                        : "neutral";
+                        
+                    var score = firstItem.TryGetProperty("score", out var sc) 
+                        ? sc.ValueKind == JsonValueKind.Number ? sc.GetDouble() : 0.5
+                        : 0.5;
                     
-                return (sentiment, score);
+                    Console.WriteLine($"✅ Hugging Face Analiz: {sentiment} ({score})");
+                    return (sentiment, score);
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Hugging Face format hatası: data array bulunamadı");
+                }
             }
             else
             {
-                Console.WriteLine($"⚠️ AI servis hatası: {response.StatusCode}");
-                return ("neutral", 0.5);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"⚠️ Hugging Face servis hatası: {response.StatusCode}");
+                Console.WriteLine($"Error Details: {errorContent}");
             }
+            
+            // Fallback: herhangi bir hata durumunda neutral dön
+            return ("neutral", 0.5);
         }
         catch (Exception ex)
         {
